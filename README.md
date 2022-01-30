@@ -14,7 +14,7 @@ I have explained it here: https://mihirshah.hashnode.dev/text-recognition-app-wi
 </table>
 
 ## Next steps:
-To add photo from gallery
+To detect text from image addded from gallery
 
 ## What do you need to get started?
 Latest version of android studio and basic googling skills will get you going.
