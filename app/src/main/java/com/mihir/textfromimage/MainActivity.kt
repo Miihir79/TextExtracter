@@ -1,5 +1,6 @@
 package com.mihir.textfromimage
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -15,6 +17,8 @@ import android.util.Log
 import android.util.SparseArray
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.vision.Frame
@@ -32,6 +36,17 @@ import java.lang.StringBuilder
 import java.util.jar.Manifest
 
 class MainActivity : AppCompatActivity() {
+    private val takePicturePreview = registerForActivityResult(ActivityResultContracts.TakePicturePreview()){ bitmap->
+        if(bitmap != null){
+            CropImage.activity()
+                .setGuidelines(CropImageView.Guidelines.ON)
+                .start(this)
+        }
+    }
+    private val onresult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){result->
+        Log.i("TAG", "this is the result: ${result.data} ${result.resultCode}")
+        onResultRecieved(CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE,result)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -40,7 +55,7 @@ class MainActivity : AppCompatActivity() {
 
         window.statusBarColor = Color.BLACK
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
         btn_capture.setOnClickListener{
             Dexter.withContext(this).withPermissions(
@@ -77,8 +92,28 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun onResultRecieved(requestCode: Int, result: ActivityResult?) {
+        when(requestCode){
+            // this does not work
+            CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE ->{
+                Log.i("TAG", "onResultRecieved: it goes inside")
+                val resultCropImage= CropImage.getActivityResult(result?.data)
+                if (result?.resultCode == Activity.RESULT_OK){
+                    resultCropImage.uri?.let {
+                        val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(it))
+                        extractText(bitmap)
+                    }
+
+                }else{
+                    Log.e("TAG", "onActivityResult: ${resultCropImage.error}" )
+                }
+            }
+        }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+
         if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE){
             val result = CropImage.getActivityResult(data)
             if (resultCode == RESULT_OK){
@@ -86,6 +121,19 @@ class MainActivity : AppCompatActivity() {
                 extractText(bitmap)
             }
         }
+
+        /*if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE){
+            Log.i("TAG", "onActivityResult: $requestCode $resultCode")
+            val result = CropImage.getActivityResult(data)
+            if (resultCode == RESULT_OK){
+                Log.i("TAG", "onActivityResult: ${result.uri}")
+                val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(result.uri))
+                extractText(bitmap)
+            }
+        }
+        else{
+            Log.i("TAG", "onActivityResult: $requestCode")
+        }*/
     }
 
     private fun extractText(bitmap: Bitmap){
